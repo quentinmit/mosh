@@ -630,7 +630,17 @@ ae_ctx* ae_allocate(void *misc)
 	#if (__SSE2__ && !_M_X64 && !_M_AMD64 && !__amd64__)
     	p = _mm_malloc(sizeof(ae_ctx),16); 
 	#elif (__ALTIVEC__ && !__PPC64__)
-		if (posix_memalign(&p,16,sizeof(ae_ctx)) != 0) p = NULL;
+		#if HAVE_POSIX_MEMALIGN
+			if (posix_memalign(&p,16,sizeof(ae_ctx)) != 0) p = NULL;
+		#else
+			// Probably building on OS X, which provides an aligned malloc()
+			if (!(p = malloc(sizeof(ae_ctx)))) p = NULL;
+			if ((uintptr_t)p & 0xF) {
+				// We didn't get an aligned pointer (should never happen)
+				free(p);
+				p = NULL;
+			}
+		#endif
 	#else
 		p = malloc(sizeof(ae_ctx));
 	#endif
